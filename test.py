@@ -4,7 +4,8 @@ import pygraphviz as pgv
 UP_LIMIT = 10
 DOWN_LIMIT = 10 
 
-def heuristic(graph, node):
+def heuristic(G, node):
+    incoming_edges = G.in_edges(node)
     return True
 
 def find_source_nodes(graph):
