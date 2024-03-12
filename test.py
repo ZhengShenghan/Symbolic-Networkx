@@ -53,21 +53,27 @@ if __name__ == '__main__':
     print(f"Attribute of node {node}: {attribute}")
 
     # DFS
-    dfs = list(nx.dfs_preorder_nodes(G, source = '104'))
-    print(dfs)
+    # dfs = list(nx.dfs_preorder_nodes(G, source = '104'))
+    # print(dfs)
 
-    # find cycle
+    # find cycle and length
     cycle = list(nx.find_cycle(G,'104',orientation="original"))
-    print(cycle)
+    print("cycle", cycle)
 
     # find zero in-degree node
     # Find nodes with no indegree
-    nodes_with_no_indegree = [node for node in G.nodes() if G.in_degree(node) == 0]
-    print("zero in-degree node", nodes_with_no_indegree)
+    # nodes_with_no_indegree = [node for node in G.nodes() if G.in_degree(node) == 0]
+    # print("zero in-degree node", nodes_with_no_indegree)
 
+
+    # Get all incoming edges of the node
+    incoming_edges = G.in_edges(node)
+
+    print(f"Incoming edges of node {node}: {list(incoming_edges)}")
     # generate dfs tree for all nodes
     dfs_trees = get_dfs_trees(G)
+
     # Print the DFS trees
-    for i, tree in enumerate(dfs_trees, start=1):
-        print(f"DFS Tree {i}:")
-        print(tree.edges())
+    # for i, tree in enumerate(dfs_trees, start=1):
+    #     print(f"DFS Tree {i}:")
+    #     print(tree.edges())
