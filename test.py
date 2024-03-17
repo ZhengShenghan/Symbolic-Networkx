@@ -4,9 +4,27 @@ import pygraphviz as pgv
 UP_LIMIT = 10
 DOWN_LIMIT = 10 
 
+feature_pool = ["in_degree", "out_degree", "depth", "constraint_size", "back_edge_loop", "in_branch_distance", 
+                "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
+
 def heuristic(G, node):
     incoming_edges = G.in_edges(node)
     return True
+
+def count_reachable_nodes(graph, start_node):
+    visited = set()
+
+    def dfs(node):
+        if node not in visited:
+            visited.add(node)
+            for neighbor in graph.neighbors(node):
+                dfs(neighbor)
+
+    dfs(start_node)
+    return len(visited)
+
+def count_predecessors(graph, node):
+    return len(list(graph.predecessors(node)))
 
 def find_source_nodes(graph):
     return [node for node in graph.nodes if graph.in_degree(node) == 0]
@@ -27,8 +45,55 @@ def dfs_tree(graph, start):
 
 def get_dfs_trees(graph):
     source_nodes = find_source_nodes(graph)
-    dfs_trees = [dfs_tree(graph, node) for node in source_nodes]
+    dfs_trees = [(dfs_tree(graph, node),node) for node in source_nodes]
     return dfs_trees
+
+def depth(graph, node, source):
+    depths = nx.single_source_shortest_path_length(graph, source)
+    return depths[node]
+
+def edge_type(graph, edge):
+    return True
+
+def classify_edges(graph):
+    # Perform DFS and record discovery and finishing times
+    discovery_time = {}
+    finishing_time = {}
+    time = [0]
+
+    def dfs_visit(node):
+        time[0] += 1
+        discovery_time[node] = time[0]
+        for neighbor in graph.neighbors(node):
+            if neighbor not in discovery_time:
+                dfs_visit(neighbor)
+        time[0] += 1
+        finishing_time[node] = time[0]
+
+    for node in graph.nodes():
+        if node not in discovery_time:
+            dfs_visit(node)
+
+    # Classify edges
+    edge_types = {}
+    for edge in graph.edges():
+        u, v = edge
+        if discovery_time[u] < discovery_time[v] and finishing_time[u] > finishing_time[v]:
+            edge_types[edge] = "Tree Edge"
+        elif discovery_time[u] > discovery_time[v] and finishing_time[u] < finishing_time[v]:
+            edge_types[edge] = "Back Edge"
+        elif discovery_time[u] < discovery_time[v] and finishing_time[u] < finishing_time[v]:
+            edge_types[edge] = "Forward Edge"
+        else:
+            edge_types[edge] = "Cross Edge"
+
+    return edge_types
+
+def edge_type_of_node(graph, node):
+    edge_types = classify_edges(graph)
+    incoming_edge_types = [edge_types[edge] for edge in graph.in_edges(node)]
+    return incoming_edge_types
+
 
 if __name__ == '__main__':
     # Load the DOT file into an AGraph object
@@ -59,6 +124,7 @@ if __name__ == '__main__':
     # find cycle and length
     cycle = list(nx.find_cycle(G,'104',orientation="original"))
     print("cycle", cycle)
+    print("cycle length", len(cycle))
 
     # find zero in-degree node
     # Find nodes with no indegree
@@ -74,6 +140,35 @@ if __name__ == '__main__':
     dfs_trees = get_dfs_trees(G)
 
     # Print the DFS trees
-    # for i, tree in enumerate(dfs_trees, start=1):
-    #     print(f"DFS Tree {i}:")
-    #     print(tree.edges())
+    for i, (tree,_) in enumerate(dfs_trees, start=1):
+        print(f"DFS Tree {i}:")
+        print(tree.edges())
+
+    # Return depth
+    max_depth = 0
+    ave_depth = 0
+    for (tree,source) in dfs_trees:
+        if node in tree.nodes():
+            node_depth = depth(tree, node, source)
+            ave_depth += node_depth
+            if node_depth > max_depth:
+                max_depth = node_depth
+            print(f"depth in dfs tree {node_depth}")
+        else:
+            print("not in this tree")
+    print(f"max depth is {max_depth}")
+    ave_depth /= len(dfs_trees)
+    print(f"average depth is {ave_depth}")
+
+
+    # classify edge types
+    incoming_edge_types = edge_type_of_node(G, node)
+    print(f"Incoming edge types for node {node}: {incoming_edge_types}")
+
+    # count predecessors
+    num_predecessors = count_predecessors(G, node)
+    print(f"Number of predecessors for node 4: {num_predecessors}")
+
+    # count reachable nodes
+    num_reachable_nodes = count_reachable_nodes(G, node)
+    print(f"Number of nodes reachable from node 2: {num_reachable_nodes}")
