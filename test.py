@@ -89,6 +89,21 @@ def classify_edges(graph):
 
     return edge_types
 
+def local_degree_centrality(graph, node, radius):
+    subgraph = nx.ego_graph(graph, node, radius=radius)
+    return nx.degree_centrality(subgraph)[node]
+
+def local_betweenness_centrality(graph, node, radius):
+    # Create a subgraph centered at the given node with the specified radius
+    subgraph = nx.ego_graph(graph, node, radius=radius)
+
+    # If the subgraph is a multigraph, convert it to a simple graph
+    if isinstance(subgraph, nx.MultiGraph) or isinstance(subgraph, nx.MultiDiGraph):
+        subgraph = nx.Graph(subgraph) if not subgraph.is_directed() else nx.DiGraph(subgraph)
+
+    return nx.betweenness_centrality(subgraph, normalized=True)[node]
+
+
 def edge_type_of_node(graph, node):
     edge_types = classify_edges(graph)
     incoming_edge_types = [edge_types[edge] for edge in graph.in_edges(node)]
@@ -172,3 +187,9 @@ if __name__ == '__main__':
     # count reachable nodes
     num_reachable_nodes = count_reachable_nodes(G, node)
     print(f"Number of nodes reachable from node 2: {num_reachable_nodes}")
+
+    local_degree = local_degree_centrality(G, node, UP_LIMIT)
+    local_betweenness = local_betweenness_centrality(G, node, UP_LIMIT)
+
+    print(f"Local degree centrality of node {node} within radius {UP_LIMIT}: {local_degree}")
+    print(f"Local betweenness centrality of node {node} within radius {UP_LIMIT}: {local_betweenness}")
