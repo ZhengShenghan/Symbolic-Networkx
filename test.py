@@ -4,7 +4,7 @@ import pygraphviz as pgv
 UP_LIMIT = 10
 DOWN_LIMIT = 10 
 
-feature_pool = ["in_degree", "out_degree", "depth", "constraint_size", "back_edge_loop", "in_branch_distance", 
+feature_pool = ["in_degree", "out_degree", "depth", "constraint_size", "back_edge_loop", "in_branch_distance", "centrality",
                 "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
 
 def heuristic(G, node):
@@ -106,8 +106,26 @@ def local_betweenness_centrality(graph, node, radius):
 
 def edge_type_of_node(graph, node):
     edge_types = classify_edges(graph)
-    incoming_edge_types = [edge_types[edge] for edge in graph.in_edges(node)]
+    incoming_edge_types = dict()
+    for edge in graph.in_edges(node):
+        incoming_edge_types[edge] = edge_types[edge]
+    # incoming_edge_types = [edge_types[edge] for edge in graph.in_edges(node)]
     return incoming_edge_types
+
+def merge_graph(graph, node):
+    merged_graph = deepcopy(graph)
+
+    for u, v in merged_graph.in_edges(node):
+        subgraph = find_single_entry_single_exit_subgraph(merged_graph, node)
+
+        if subgraph:
+            # Merge the subgraph into node 'v'
+            for n in subgraph.nodes():
+                if n != node:
+                    merged_graph = nx.contracted_nodes(merged_graph, node, n, self_loops=False)
+
+    return merged_graph
+
 
 
 if __name__ == '__main__':
