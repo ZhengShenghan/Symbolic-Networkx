@@ -1,8 +1,10 @@
 import networkx as nx
 import pygraphviz as pgv
+from copy import deepcopy
 
 UP_LIMIT = 10
 DOWN_LIMIT = 10 
+DEPTH_LIMIT = 15
 
 feature_pool = ["in_degree", "out_degree", "depth", "constraint_size", "back_edge_loop", "in_branch_distance", "centrality",
                 "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
@@ -112,6 +114,9 @@ def edge_type_of_node(graph, node):
     # incoming_edge_types = [edge_types[edge] for edge in graph.in_edges(node)]
     return incoming_edge_types
 
+def find_single_entry_single_exit_subgraph(graph, node):
+    return True 
+
 def merge_graph(graph, node):
     merged_graph = deepcopy(graph)
 
@@ -126,7 +131,85 @@ def merge_graph(graph, node):
 
     return merged_graph
 
+def metric_ancestor(value1 , value2, alpha=0.2):
+    return value1 + value2 - alpha*abs(value1 - value2)
 
+
+def have_same_ancestors(graph, node, edge_types, DEPTH_LIMIT):
+    # Get the predecessors of the node
+    predecessors = list(graph.predecessors(node))
+
+    # Dictionary to store the ancestors and their depths for each predecessor
+    ancestors_depth = {}
+
+    # Traverse backward from each predecessor to find their ancestors and track depths
+    for pred in predecessors:
+        edge_type = edge_types.get((pred, node), None)
+        print("predecessor", pred)
+        # Only perform the check for forward and backward edges
+        if edge_type in ['Tree Edge', 'Forward Edge', 'Cross Edge']:
+            ancestor_set = set()
+            queue = [(pred, 0)]  # Tuple of (node, depth)
+
+            while queue:
+                current_node, depth = queue.pop(0)
+                for ancestor in graph.predecessors(current_node):
+                    if ancestor not in ancestor_set:
+                        ancestor_set.add(ancestor)
+                        queue.append((ancestor, depth + 1))
+
+            # Store the ancestors and their depths for the current predecessor
+            ancestors_depth[pred] = {ancestor: depth for ancestor, depth in queue}
+            print("ancestor set", ancestor_set)
+    # Find pairs of branches that share the same ancestor and calculate the metric
+    num_pairs = 0
+    max_metric = 0
+    for ancestor in set.intersection(*[set(ancestors.keys()) for ancestors in ancestors_depth.values()]):
+        depths = [ancestors_depth[pred][ancestor] for pred in ancestors_depth if ancestor in ancestors_depth[pred]]
+        for i in range(len(depths)):
+            for j in range(i + 1, len(depths)):
+                num_pairs += 1
+                branch_pair = (depths[i][0], depths[j][0])
+                metric_value = metric_ancestor(depths[i], depths[j])
+                max_metric = max(max_metric, metric_value)
+                print(f"Branch pair {branch_pair} shares ancestor {ancestor} with metric value {metric_value}")
+
+    return num_pairs, max_metric if num_pairs > 0 else 2 * DEPTH_LIMIT
+
+
+def find_branch_pairs_with_common_ancestor(dfs_trees, node, DEPTH_LIMIT):
+    # Dictionary to store the depths of the node in each DFS tree
+    depths_in_trees = {}
+
+    # Find the depth of the node in each DFS tree
+    for tree, root in dfs_trees:
+        if node in tree.nodes():
+            depths_in_trees[root] = nx.shortest_path_length(tree, source=root, target=node)
+
+    # Find pairs of roots (branches) that share a common ancestor
+    common_ancestors = {}
+    for root1, depth1 in depths_in_trees.items():
+        for root2, depth2 in depths_in_trees.items():
+            if root1 != root2:
+                print("DFS tree", dfs_trees[0][0].edges())
+                print(f"root1 {root1} root2 {root2}")
+                common_ancestor = nx.lowest_common_ancestor(dfs_trees[0][0], root1, root2)
+                if common_ancestor:
+                    pair = tuple(sorted([root1, root2]))
+                    common_ancestors[pair] = common_ancestor
+
+    # Calculate the metric for each pair of branches with a common ancestor
+    num_pairs = 0
+    max_metric = 0
+    for (root1, root2), ancestor in common_ancestors.items():
+        depth1 = depths_in_trees[root1]
+        depth2 = depths_in_trees[root2]
+        metric_value = metric_ancestor(depth1, depth2)
+        max_metric = max(max_metric, metric_value)
+        num_pairs += 1
+        print(f"Branches {root1} and {root2} share common ancestor {ancestor} with metric value {metric_value}")
+
+    return num_pairs, max_metric if num_pairs > 0 else 2 * DEPTH_LIMIT
 
 if __name__ == '__main__':
     # Load the DOT file into an AGraph object
@@ -211,3 +294,7 @@ if __name__ == '__main__':
 
     print(f"Local degree centrality of node {node} within radius {UP_LIMIT}: {local_degree}")
     print(f"Local betweenness centrality of node {node} within radius {UP_LIMIT}: {local_betweenness}")
+
+    num_pairs, max_metric = find_branch_pairs_with_common_ancestor(dfs_trees, node, DEPTH_LIMIT)
+    print(f"Number of pairs of branches sharing the same ancestor: {num_pairs}")
+    print(f"Biggest metric value of those branches: {max_metric}")
