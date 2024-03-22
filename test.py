@@ -177,37 +177,33 @@ def have_same_ancestors(graph, node, edge_types, DEPTH_LIMIT):
     return num_pairs, max_metric if num_pairs > 0 else 2 * DEPTH_LIMIT
 
 
-def find_branch_pairs_with_common_ancestor(dfs_trees, node, DEPTH_LIMIT):
-    # Dictionary to store the depths of the node in each DFS tree
-    depths_in_trees = {}
+def find_branch_pairs_with_common_ancestor(dfs_trees, node, edge_types, DEPTH_LIMIT):
+    predecessors = [(pred, edge_types.get((pred, node), None)) for pred in list(set([edge[0] for edge in edge_types if edge[1] == node]))]
 
-    # Find the depth of the node in each DFS tree
-    for tree, root in dfs_trees:
-        if node in tree.nodes():
-            depths_in_trees[root] = nx.shortest_path_length(tree, source=root, target=node)
+    # Filter for forward and backward edges
+    predecessors = [pred for pred, edge_type in predecessors if edge_type in ['Tree Edge', 'Cross Edge', 'Forward Edge']]
 
-    # Find pairs of roots (branches) that share a common ancestor
-    common_ancestors = {}
-    for root1, depth1 in depths_in_trees.items():
-        for root2, depth2 in depths_in_trees.items():
-            if root1 != root2:
-                print("DFS tree", dfs_trees[0][0].edges())
-                print(f"root1 {root1} root2 {root2}")
-                common_ancestor = nx.lowest_common_ancestor(dfs_trees[0][0], root1, root2)
-                if common_ancestor:
-                    pair = tuple(sorted([root1, root2]))
-                    common_ancestors[pair] = common_ancestor
-
-    # Calculate the metric for each pair of branches with a common ancestor
+    # Find pairs of branches that share the same ancestor and calculate the metric
     num_pairs = 0
     max_metric = 0
-    for (root1, root2), ancestor in common_ancestors.items():
-        depth1 = depths_in_trees[root1]
-        depth2 = depths_in_trees[root2]
-        metric_value = metric_ancestor(depth1, depth2)
-        max_metric = max(max_metric, metric_value)
-        num_pairs += 1
-        print(f"Branches {root1} and {root2} share common ancestor {ancestor} with metric value {metric_value}")
+    for i in range(len(predecessors)):
+        for j in range(i + 1, len(predecessors)):
+            root1, root2 = predecessors[i], predecessors[j]
+            # Find the DFS tree that contains both roots
+            for tree, _ in dfs_trees:
+                if root1 in tree and root2 in tree:
+                    common_ancestor = nx.lowest_common_ancestor(tree, root1, root2)
+                    if common_ancestor is not None:
+                        print(f'common ancestor {common_ancestor}')
+                        depth1 = nx.shortest_path_length(tree, common_ancestor, root1)
+                        print(f'roo1: {root1} has depth {depth1}')
+                        depth2 = nx.shortest_path_length(tree, common_ancestor, root2)
+                        print(f'roo1: {root2} has depth {depth2}')
+                        num_pairs += 1
+                        metric_value = metric_ancestor(depth1, depth2)
+                        max_metric = max(max_metric, metric_value)
+                        print(f'tree that has common ancestor{tree.nodes()}')
+                    
 
     return num_pairs, max_metric if num_pairs > 0 else 2 * DEPTH_LIMIT
 
@@ -295,6 +291,6 @@ if __name__ == '__main__':
     print(f"Local degree centrality of node {node} within radius {UP_LIMIT}: {local_degree}")
     print(f"Local betweenness centrality of node {node} within radius {UP_LIMIT}: {local_betweenness}")
 
-    num_pairs, max_metric = find_branch_pairs_with_common_ancestor(dfs_trees, node, DEPTH_LIMIT)
+    num_pairs, max_metric = find_branch_pairs_with_common_ancestor(dfs_trees, node, incoming_edge_types, DEPTH_LIMIT)
     print(f"Number of pairs of branches sharing the same ancestor: {num_pairs}")
     print(f"Biggest metric value of those branches: {max_metric}")
