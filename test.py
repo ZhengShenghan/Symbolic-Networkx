@@ -1,13 +1,39 @@
 import networkx as nx
 import pygraphviz as pgv
 from copy import deepcopy
+import json
+# import programl as pg
+import os
 
 UP_LIMIT = 10
 DOWN_LIMIT = 10 
 DEPTH_LIMIT = 15
 
-feature_pool = ["in_degree", "out_degree", "depth", "constraint_size", "back_edge_loop", "in_branch_distance", "centrality",
-                "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
+feature_pool = ["in degree", "out degree", "max depth", "average depth", "back edge loop length", "in branch distance", "degree centrality", "betweenness centrality ", "Cross Edge", "Forward Edge", "Tree Edge", 
+                "Back Edge", "Pairs of Branch of same ancestor", "reachable nodes", "biggest metric value",
+                "constraint_size", "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
+
+# def pb_to_networkx(merge_graph_fpath):
+#     G = pg.load_graphs(merge_graph_fpath)[0]
+#     print("[Utils][INFO] # nodes: %d | # edges: %d." %
+#           (len(G.node), len(G.edge)))
+#     nx_graph = pg.to_networkx(G)
+#     return nx_graph
+
+# def convert(source_dir, target_dir):
+#     # Walk through the source directory and find all .pb files
+#     for root, dirs, files in os.walk(source_dir):
+#         for file in files:
+#             if file.endswith('.pb'):
+#                 pb_file_path = os.path.join(root, file)
+#                 # Construct the corresponding .dot file path
+#                 dot_file_name = file.replace('.pb', '.dot')
+#                 dot_file_path = os.path.join(target_dir, dot_file_name)
+#                 print(pb_file_path)
+#                 print(dot_file_path)
+#                 # exit(0)
+#                 # Convert the file using the provided function
+#                 pb_to_networkx(pb_file_path, dot_file_path)
 
 def heuristic(G, node):
     incoming_edges = G.in_edges(node)
@@ -134,6 +160,16 @@ def merge_graph(graph, node):
 def metric_ancestor(value1 , value2, alpha=0.2):
     return value1 + value2 - alpha*abs(value1 - value2)
 
+def count_edge_types(edge_dict):
+    # Initialize a dictionary to store the count of each edge type
+    edge_type_count = {'Tree Edge': 0, 'Cross Edge': 0, 'Back Edge': 0, 'Forward Edge': 0}
+    
+    # Iterate over the edge_dict and increment the corresponding edge type count
+    for edge_type in edge_dict.values():
+        if edge_type in edge_type_count:
+            edge_type_count[edge_type] += 1
+    
+    return edge_type_count
 
 def have_same_ancestors(graph, node, edge_types, DEPTH_LIMIT):
     # Get the predecessors of the node
@@ -208,6 +244,7 @@ def find_branch_pairs_with_common_ancestor(dfs_trees, node, edge_types, DEPTH_LI
     return num_pairs, max_metric if num_pairs > 0 else 2 * DEPTH_LIMIT
 
 if __name__ == '__main__':
+    output = dict()
     # Load the DOT file into an AGraph object
     agraph = pgv.AGraph("1.dot")
 
@@ -229,6 +266,13 @@ if __name__ == '__main__':
     print(f"Out-degree of node {node}: {out_degree}")
     print(f"Attribute of node {node}: {attribute}")
 
+    # feature_pool = ["in degree", "out degree", "max depth", "average depth", "back edge loop length", "in branch distance", "degree centrality", "betweenness centrality", "Cross Edge", "Forward Edge", "Tree Edge", 
+    #             "Back Edge", "Pairs of Branch of same ancestor", "reachable nodes",
+    #             "constraint_size", "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
+
+    output["in degree"] = in_degree
+    output["out degree"] = out_degree
+    
     # DFS
     # dfs = list(nx.dfs_preorder_nodes(G, source = '104'))
     # print(dfs)
@@ -237,7 +281,7 @@ if __name__ == '__main__':
     cycle = list(nx.find_cycle(G,'104',orientation="original"))
     print("cycle", cycle)
     print("cycle length", len(cycle))
-
+    output["back edge loop length"] = len(cycle)
     # find zero in-degree node
     # Find nodes with no indegree
     # nodes_with_no_indegree = [node for node in G.nodes() if G.in_degree(node) == 0]
@@ -252,9 +296,9 @@ if __name__ == '__main__':
     dfs_trees = get_dfs_trees(G)
 
     # Print the DFS trees
-    for i, (tree,_) in enumerate(dfs_trees, start=1):
-        print(f"DFS Tree {i}:")
-        print(tree.edges())
+    # for i, (tree,_) in enumerate(dfs_trees, start=1):
+    #     print(f"DFS Tree {i}:")
+    #     print(tree.edges())
 
     # Return depth
     max_depth = 0
@@ -271,11 +315,16 @@ if __name__ == '__main__':
     print(f"max depth is {max_depth}")
     ave_depth /= len(dfs_trees)
     print(f"average depth is {ave_depth}")
-
-
+    output["max depth"] = max_depth
+    output["average depth"] = ave_depth
     # classify edge types
     incoming_edge_types = edge_type_of_node(G, node)
     print(f"Incoming edge types for node {node}: {incoming_edge_types}")
+    edge_dict = count_edge_types(incoming_edge_types)
+    output["Cross Edge"] = edge_dict["Cross Edge"]
+    output["Forward Edge"] = edge_dict["Forward Edge"]
+    output["Tree Edge"] = edge_dict["Tree Edge"]
+    output["Back Edge"] = edge_dict["Back Edge"]
 
     # count predecessors
     num_predecessors = count_predecessors(G, node)
@@ -284,13 +333,22 @@ if __name__ == '__main__':
     # count reachable nodes
     num_reachable_nodes = count_reachable_nodes(G, node)
     print(f"Number of nodes reachable from node 2: {num_reachable_nodes}")
+    output["reachable nodes"] = num_reachable_nodes
 
     local_degree = local_degree_centrality(G, node, UP_LIMIT)
     local_betweenness = local_betweenness_centrality(G, node, UP_LIMIT)
 
     print(f"Local degree centrality of node {node} within radius {UP_LIMIT}: {local_degree}")
     print(f"Local betweenness centrality of node {node} within radius {UP_LIMIT}: {local_betweenness}")
+    output["degree centrality"] = local_degree
+    output["betweenness centrality"] = local_betweenness
 
     num_pairs, max_metric = find_branch_pairs_with_common_ancestor(dfs_trees, node, incoming_edge_types, DEPTH_LIMIT)
     print(f"Number of pairs of branches sharing the same ancestor: {num_pairs}")
     print(f"Biggest metric value of those branches: {max_metric}")
+    output["in branch distance"] = max_metric
+    output["Pairs of Branch of same ancestor"] = num_pairs
+    # output json
+    # with open('output.json', 'w') as json_file:
+    #     json.dump(output, json_file, indent=4)
+    print(f"output dict {output}")
