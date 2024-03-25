@@ -11,7 +11,7 @@ DEPTH_LIMIT = 15
 
 feature_pool = ["in degree", "out degree", "max depth", "average depth", "back edge loop length", "in branch distance", "degree centrality", "betweenness centrality ", 
                 "Cross Edge", "Forward Edge", "Tree Edge", "Back Edge", "Pairs of Branch of same ancestor", "reachable nodes", 
-                "constraint_size", "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
+                "constraint_size", "stack depth", "exploration depth", "steppedInstructions", "constraint size", "number of symbolics", "instsSinceCovNew", "instruction count", "coveredNew", "coveredLines"]
 
 # def pb_to_networkx(merge_graph_fpath):
 #     G = pg.load_graphs(merge_graph_fpath)[0]
@@ -73,6 +73,7 @@ def dfs_tree(graph, start):
 
 def get_dfs_trees(graph):
     source_nodes = find_source_nodes(graph)
+    print(f'source nodes {source_nodes}')
     dfs_trees = [(dfs_tree(graph, node),node) for node in source_nodes]
     return dfs_trees
 
@@ -243,14 +244,39 @@ def find_branch_pairs_with_common_ancestor(dfs_trees, node, edge_types, DEPTH_LI
 
     return num_pairs, max_metric if num_pairs > 0 else 2 * DEPTH_LIMIT
 
-def gen_json(G, node):
-    output = dict()
+from collections import defaultdict
+
+def calculate_depth(graph): # use SCC's depth instead of the node's depth
+    # Step 1: Decompose the graph into SCCs
+    sccs = list(nx.strongly_connected_components(graph))
+
+    # Step 2: Create a reduced graph
+    reduced_graph = nx.DiGraph()
+    scc_map = {node: idx for idx, scc in enumerate(sccs) for node in scc}
+    for u, v in graph.edges():
+        if scc_map[u] != scc_map[v]:
+            reduced_graph.add_edge(scc_map[u], scc_map[v])
+
+    # Step 3: Topological sort
+    topo_order = list(nx.topological_sort(reduced_graph))
+
+    # Step 4: Calculate depth
+    depth = {node: -1 for node in graph.nodes}
+    for idx in topo_order:
+        max_depth = 0
+        for u in sccs[idx]:
+            for v in graph.predecessors(u):
+                max_depth = max(max_depth, depth[v] + 1)
+        for u in sccs[idx]:
+            depth[u] = max_depth
+
+    return depth
 
 
 if __name__ == '__main__':
     output = dict()
     # Load the DOT file into an AGraph object
-    agraph = pgv.AGraph("1.dot")
+    agraph = pgv.AGraph("test.dot")
 
     # Convert the AGraph object into a NetworkX graph
     G = nx.nx_agraph.from_agraph(agraph)
@@ -259,13 +285,13 @@ if __name__ == '__main__':
     print(nx.info(G))
 
     # index maintains i.e node 104 in dot will still be 104 in adj list
-    nx.write_adjlist(G, "1.adjlist")
+    # nx.write_adjlist(G, "1.adjlist")
 
     # 
-    node = '104'
+    node = '408'
     attribute = G.nodes[node]
-    in_degree = G.in_degree('104')
-    out_degree = G.out_degree('104')
+    in_degree = G.in_degree(node)
+    out_degree = G.out_degree(node)
     print(f"In-degree of node {node}: {in_degree}")
     print(f"Out-degree of node {node}: {out_degree}")
     print(f"Attribute of node {node}: {attribute}")
@@ -282,7 +308,7 @@ if __name__ == '__main__':
     # print(dfs)
 
     # find cycle and length
-    cycle = list(nx.find_cycle(G,'104',orientation="original"))
+    cycle = list(nx.find_cycle(G,node,orientation="original"))
     print("cycle", cycle)
     print("cycle length", len(cycle))
     output["back edge loop length"] = len(cycle)
@@ -298,11 +324,14 @@ if __name__ == '__main__':
     print(f"Incoming edges of node {node}: {list(incoming_edges)}")
     # generate dfs tree for all nodes
     dfs_trees = get_dfs_trees(G)
+    if dfs_trees == []:
+        dfs_trees = [(dfs_tree(G, '0'), '0')]
+
 
     # Print the DFS trees
-    # for i, (tree,_) in enumerate(dfs_trees, start=1):
-    #     print(f"DFS Tree {i}:")
-    #     print(tree.edges())
+    for i, (tree,_) in enumerate(dfs_trees, start=1):
+        print(f"DFS Tree {i}:")
+        print(tree.edges())
 
     # Return depth
     max_depth = 0
@@ -356,3 +385,7 @@ if __name__ == '__main__':
     # with open('output.json', 'w') as json_file:
     #     json.dump(output, json_file, indent=4)
     print(f"output dict {output}")
+
+
+    depth = calculate_depth(G)
+    print(f'depth {depth}')
