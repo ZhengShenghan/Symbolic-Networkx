@@ -9,8 +9,8 @@ UP_LIMIT = 10
 DOWN_LIMIT = 10 
 DEPTH_LIMIT = 15
 
-feature_pool = ["in degree", "out degree", "max depth", "average depth", "back edge loop length", "in branch distance", "degree centrality", "betweenness centrality ", "Cross Edge", "Forward Edge", "Tree Edge", 
-                "Back Edge", "Pairs of Branch of same ancestor", "reachable nodes", "biggest metric value",
+feature_pool = ["in degree", "out degree", "max depth", "average depth", "back edge loop length", "in branch distance", "degree centrality", "betweenness centrality ", 
+                "Cross Edge", "Forward Edge", "Tree Edge", "Back Edge", "Pairs of Branch of same ancestor", "reachable nodes", 
                 "constraint_size", "stack depth", "constraint size", "number of symbolics", "instruction count", "I/O Interactions", "coveredLines"]
 
 # def pb_to_networkx(merge_graph_fpath):
@@ -230,18 +230,22 @@ def find_branch_pairs_with_common_ancestor(dfs_trees, node, edge_types, DEPTH_LI
                 if root1 in tree and root2 in tree:
                     common_ancestor = nx.lowest_common_ancestor(tree, root1, root2)
                     if common_ancestor is not None:
-                        print(f'common ancestor {common_ancestor}')
+                        # print(f'common ancestor {common_ancestor}')
                         depth1 = nx.shortest_path_length(tree, common_ancestor, root1)
-                        print(f'roo1: {root1} has depth {depth1}')
+                        # print(f'roo1: {root1} has depth {depth1}')
                         depth2 = nx.shortest_path_length(tree, common_ancestor, root2)
-                        print(f'roo1: {root2} has depth {depth2}')
+                        # print(f'roo1: {root2} has depth {depth2}')
                         num_pairs += 1
                         metric_value = metric_ancestor(depth1, depth2)
                         max_metric = max(max_metric, metric_value)
-                        print(f'tree that has common ancestor{tree.nodes()}')
+                        # print(f'tree that has common ancestor{tree.nodes()}')
                     
 
     return num_pairs, max_metric if num_pairs > 0 else 2 * DEPTH_LIMIT
+
+def gen_json(G, node):
+    output = dict()
+
 
 if __name__ == '__main__':
     output = dict()
