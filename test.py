@@ -273,20 +273,48 @@ def calculate_depth(graph): # use SCC's depth instead of the node's depth
     return depth
 
 
+def find_node_by_merge_point_addr(graph, merge_point_addr):
+    for node in graph.nodes():
+        # Access the attributes of the node
+        attributes = graph.nodes[node]
+        #  print(f"attribute {attributes}")
+        
+        if 'inst_id' not in attributes.keys():
+            continue
+
+        
+        if attributes["inst_id"] == merge_point_addr:
+            return node
+    return None
+
+
+def extract_merge_point_addr(json_file_path):
+    # Read and parse the JSON file
+    with open(json_file_path, 'r') as file:
+        data = json.load(file)
+
+    # Extract the Merge_point_addr value
+    merge_point_addr = data.get('Merge_point_addr', None)
+
+    return merge_point_addr
+
 if __name__ == '__main__':
     output = dict()
     # Load the DOT file into an AGraph object
-    agraph = pgv.AGraph("test.dot")
+    agraph = pgv.AGraph("/home/vboxuser/Documents/research/symbolic/MergeGraph-1354460311834416835-all-0.dot")
 
     # Convert the AGraph object into a NetworkX graph
     G = nx.nx_agraph.from_agraph(agraph)
 
     # Now you can work with the nx_graph as a regular NetworkX graph
     print(nx.info(G))
-
+    json_file_path = '/home/vboxuser/Documents/research/symbolic/data-1354460311834416835.json'
     # index maintains i.e node 104 in dot will still be 104 in adj list
     # nx.write_adjlist(G, "1.adjlist")
-
+    merge_point_addr = extract_merge_point_addr(json_file_path)
+    print(f"merge point addr {merge_point_addr}")
+    return_node = find_node_by_merge_point_addr(G, merge_point_addr)
+    print(f"node found by address {return_node}")
     # 
     node = '408'
     attribute = G.nodes[node]
