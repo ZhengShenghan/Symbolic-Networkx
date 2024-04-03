@@ -2,6 +2,7 @@ import networkx as nx
 import pygraphviz as pgv
 from copy import deepcopy
 import json
+import ast
 # import programl as pg
 import os
 
@@ -278,12 +279,12 @@ def find_node_by_merge_point_addr(graph, merge_point_addr):
         # Access the attributes of the node
         attributes = graph.nodes[node]
         #  print(f"attribute {attributes}")
-        
-        if 'inst_id' not in attributes.keys():
+        features = ast.literal_eval(attributes['features'])
+        if 'inst_id' not in features.keys():
             continue
 
         
-        if attributes["inst_id"] == merge_point_addr:
+        if features["inst_id"][0] == merge_point_addr:
             return node
     return None
 
@@ -316,13 +317,24 @@ if __name__ == '__main__':
     return_node = find_node_by_merge_point_addr(G, merge_point_addr)
     print(f"node found by address {return_node}")
     # 
-    node = '408'
+    node = '104'
     attribute = G.nodes[node]
     in_degree = G.in_degree(node)
     out_degree = G.out_degree(node)
+
+    # Parse the features attribute as JSON
+    # features = json.loads(attribute.get('features', '{}'))
+
     print(f"In-degree of node {node}: {in_degree}")
     print(f"Out-degree of node {node}: {out_degree}")
     print(f"Attribute of node {node}: {attribute}")
+    print(f"Type of attribute: {type(attribute)}") # dict
+    print(f"key of attribute {attribute.keys()}")
+    # Extract the inst_id value
+    features = ast.literal_eval(attribute['features'])
+    inst_id = features['inst_id']
+    print(f"node inst_id {inst_id}")
+    print(f"Type of feature {type(inst_id)}") # str
 
     # feature_pool = ["in degree", "out degree", "max depth", "average depth", "back edge loop length", "in branch distance", "degree centrality", "betweenness centrality", "Cross Edge", "Forward Edge", "Tree Edge", 
     #             "Back Edge", "Pairs of Branch of same ancestor", "reachable nodes",
@@ -357,9 +369,9 @@ if __name__ == '__main__':
 
 
     # Print the DFS trees
-    for i, (tree,_) in enumerate(dfs_trees, start=1):
-        print(f"DFS Tree {i}:")
-        print(tree.edges())
+    # for i, (tree,_) in enumerate(dfs_trees, start=1):
+    #     print(f"DFS Tree {i}:")
+    #     print(tree.edges())
 
     # Return depth
     max_depth = 0
