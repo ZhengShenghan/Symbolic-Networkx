@@ -279,6 +279,12 @@ def find_node_by_merge_point_addr(graph, merge_point_addr):
         # Access the attributes of the node
         attributes = graph.nodes[node]
         #  print(f"attribute {attributes}")
+        if 'features' not in attributes:
+            continue  # Skip this node if 'features' key is not present
+
+        # Parse the 'features' string to a dictionary
+        features = ast.literal_eval(attributes['features'])
+
         features = ast.literal_eval(attributes['features'])
         if 'inst_id' not in features.keys():
             continue
@@ -302,14 +308,14 @@ def extract_merge_point_addr(json_file_path):
 if __name__ == '__main__':
     output = dict()
     # Load the DOT file into an AGraph object
-    agraph = pgv.AGraph("/home/vboxuser/Documents/research/symbolic/MergeGraph-1354460311834416835-all-0.dot")
+    agraph = pgv.AGraph("MergeGraph-1354460311834416835-all-0.dot")
 
     # Convert the AGraph object into a NetworkX graph
     G = nx.nx_agraph.from_agraph(agraph)
 
     # Now you can work with the nx_graph as a regular NetworkX graph
     print(nx.info(G))
-    json_file_path = '/home/vboxuser/Documents/research/symbolic/data-1354460311834416835.json'
+    json_file_path = 'data-1354460311834416835.json'
     # index maintains i.e node 104 in dot will still be 104 in adj list
     # nx.write_adjlist(G, "1.adjlist")
     merge_point_addr = extract_merge_point_addr(json_file_path)
@@ -321,7 +327,9 @@ if __name__ == '__main__':
     attribute = G.nodes[node]
     in_degree = G.in_degree(node)
     out_degree = G.out_degree(node)
-
+    # for node in G.nodes():
+    #     attribute = G.nodes[node]
+    #     print(f"node attribute {attribute}")
     # Parse the features attribute as JSON
     # features = json.loads(attribute.get('features', '{}'))
 
